@@ -1,6 +1,6 @@
 library(prim)
 source("prim_edits.R")
-setwd("C:\\Users\\arzamasov\\Desktop\\SuRF-Reproducibility")
+setwd("target_folder")
 
 save_res_to_file <- function(boxes, filename) {
   for(i in 1:length(boxes)){
