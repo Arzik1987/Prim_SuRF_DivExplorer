@@ -1,3 +1,18 @@
+
+
+dir.create(file.path(getwd(), "prim_boxes"), showWarnings = FALSE)
+dir.create(file.path(getwd(), "prim_kde"), showWarnings = FALSE)
+dir.create(file.path(getwd(), "prim_dens"), showWarnings = FALSE)
+
+
+save_res_to_file <- function(boxes, filename) {
+  for(i in 1:length(boxes)){
+    boxes[[i]] <- c(boxes[[i]][1,], boxes[[i]][2,]-boxes[[i]][1,])
+  }
+  mat <- do.call(rbind, boxes)
+  write.table(mat, filename, row.names = FALSE, col.names = FALSE, sep = ",")
+}
+
 ### to work with 1D data, we do a small change in the internal function of 
 ### peel package: We replace "x.new <- x[x.index, ]" with 
 ### "x.new <- x[x.index, , drop = FALSE]"
@@ -163,29 +178,92 @@ assignInNamespace("prim.one",
 }, ns = "prim")
 
 
-# prim::prim.box
-# prim:::prim.one
+
+PRIMdens <- function(X, alpha=0.05) {
+  # Initialize
+  boxes <- list()
+  densities <- numeric()
+  
+  n_points <- nrow(X)
+  
+  # Initial box is the unit box
+  box <- rbind(rep(0, ncol(X)), rep(1, ncol(X)))
+  
+  for(iteration in 1:120) {
+    max_density <- -Inf
+    best_cut <- NULL
+    best_box <- NULL
+    n_in_best_box <- n_points
+    ind_in_best_box <- NULL
+    
+    for(dim in 1:ncol(X)) {
+      for(direction in c(0, 1)) { # 0 for lower bound, 1 for upper bound
+        trial_box <- box
+        current_dim_length <- trial_box[2, dim] - trial_box[1, dim]
+        
+        # Adjust the boundary in the dimension
+        adjustment <- current_dim_length * alpha
+        if(direction == 0) {
+          trial_box[1, dim] <- trial_box[1, dim] + adjustment
+          in_box <- X[, dim] >= trial_box[1, dim]
+        } else {
+          trial_box[2, dim] <- trial_box[2, dim] - adjustment
+          in_box <- X[, dim] <= trial_box[2, dim]
+        }
+        
+        # Count points in the trial box
+        n_in_box <- sum(in_box)
+        
+        # Calculate volume of the trial box
+        volume <- prod(trial_box[2, ] - trial_box[1, ])
+        
+        # Calculate density
+        density <- ifelse(volume > 0, n_in_box / volume, 0)
+        
+        if(density > max_density) {
+          max_density <- density
+          best_cut <- list(dim, direction)
+          best_box <- trial_box
+          n_in_best_box <- n_in_box
+          ind_in_best_box <- in_box
+        }
+      }
+    }
+    
+    # Break if no cut is found or too few points remain
+    if(is.null(best_cut) || n_in_best_box < 1/alpha) break
+    
+    # Update the box and record
+    box <- best_box
+    boxes <- c(boxes, list(box))
+    densities <- c(densities, max_density)
+    X <- X[ind_in_best_box, , drop=FALSE]
+  }
+  
+  return(list(boxes=boxes, densities=densities))
+}
+
 
 
 ### Evaluation boxes
 
-iou <- function(box1, box2){
-  
-  inter <- box1
-  inter[1, ] <- apply(rbind(box1[1, ], box2[1, ]), 2, max)
-  inter[2, ] <- apply(rbind(box1[2, ], box2[2, ]), 2, min)
-  
-  sides1 <- box1[2, ] - box1[1, ]
-  sides2 <- box2[2, ] - box2[1, ]
-  sides.inter <- inter[2, ] - inter[1, ]
-  
-  if(sum(sides.inter<=0) > 0){
-    iou = 0
-  } else {
-    iou = 1/(prod(sides1/sides.inter) + prod(sides2/sides.inter) - 1)
-  }
-  iou
-}
+# iou <- function(box1, box2){
+#   
+#   inter <- box1
+#   inter[1, ] <- apply(rbind(box1[1, ], box2[1, ]), 2, max)
+#   inter[2, ] <- apply(rbind(box1[2, ], box2[2, ]), 2, min)
+#   
+#   sides1 <- box1[2, ] - box1[1, ]
+#   sides2 <- box2[2, ] - box2[1, ]
+#   sides.inter <- inter[2, ] - inter[1, ]
+#   
+#   if(sum(sides.inter<=0) > 0){
+#     iou = 0
+#   } else {
+#     iou = 1/(prod(sides1/sides.inter) + prod(sides2/sides.inter) - 1)
+#   }
+#   iou
+# }
 
 # box1 <- matrix(c(0,0,0.3,0.3), ncol = 2, byrow = TRUE)
 # box2 <- matrix(c(0.2,0.2,0.5,0.5), ncol = 2, byrow = TRUE)  
@@ -198,21 +276,21 @@ iou <- function(box1, box2){
 # iou(box4,box1) # 0.09
 
 
-evaluate <- function(boxes, gt){
-  if(length(boxes) != length(gt)){
-    warning("The number ob boxes discovered is not equal to the true number of boxes")
-  }
-  
-  k <- length(boxes)
-  l <- length(gt)
-  res <- matrix(rep(NA, k*l), ncol = l)
-  for(i in 1:k){
-    for(j in 1:l){
-      res[i, j] <- iou(boxes[[i]], gt[[j]])
-    }
-  }
-  mean(apply(res, 2, max))
-}
+# evaluate <- function(boxes, gt){
+#   if(length(boxes) != length(gt)){
+#     warning("The number ob boxes discovered is not equal to the true number of boxes")
+#   }
+#   
+#   k <- length(boxes)
+#   l <- length(gt)
+#   res <- matrix(rep(NA, k*l), ncol = l)
+#   for(i in 1:k){
+#     for(j in 1:l){
+#       res[i, j] <- iou(boxes[[i]], gt[[j]])
+#     }
+#   }
+#   mean(apply(res, 2, max))
+# }
 
 
 

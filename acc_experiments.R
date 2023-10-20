@@ -1,15 +1,8 @@
+
 library(prim)
 source("prim_edits.R")
-setwd("target_folder")
 
-save_res_to_file <- function(boxes, filename) {
-  for(i in 1:length(boxes)){
-    boxes[[i]] <- c(boxes[[i]][1,], boxes[[i]][2,]-boxes[[i]][1,])
-  }
-  mat <- do.call(rbind, boxes)
-  write.table(mat, filename, row.names = FALSE, col.names = FALSE, sep = ",")
-}
-
+#### Statistic 'Aggregate', 1 GT region
 
 for(k in 1:5){
   print(k)
@@ -36,6 +29,7 @@ for(k in 1:5){
   } 
 }
 
+#### Statistic 'Aggregate', 3 GT regions
 
 for(k in 1:5){
   print(k)
@@ -63,6 +57,8 @@ for(k in 1:5){
   } 
 }
 
+
+#### Statistic 'Density', 1 GT region
 
 library(FNN)
 
@@ -95,6 +91,8 @@ for(k in 1:5){
     save_res_to_file(res$box, paste0("prim_boxes\\data_density_dimensions=", k, "_multi_False.csv"))
   }
 }
+
+#### Statistic 'Density', 3 GT regions
 
 for(k in 1:5){
   print(k)
@@ -132,8 +130,15 @@ for(k in 1:5){
   }
 }
 
-#### KDE
 
+#############
+#### KDE ####
+#############
+
+#### NOTE: For 5 dimensions it takes some time to estimate kde. So we just store 
+#### the initial box, as we use kde for exclusively for demonstration
+
+#### Statistic 'Density', 1 GT region
 
 for(k in 1:4){
   print(k)
@@ -172,9 +177,9 @@ for(k in 1:4){
   }
 }
 
-box <- matrix(c(rep(0, 5),rep(1, 5)), ncol = 5, byrow = TRUE)
-save_res_to_file(list(box), paste0("prim_kde\\data_density_dimensions=", 5, "_multi_False.csv"))
+#### Statistic 'Density', 3 GT regions
 
+library(ks)
 
 for(k in 1:4){
   print(k)
@@ -185,7 +190,6 @@ for(k in 1:4){
     d <- as.data.frame(matrix(runif(100000*k), ncol = k))
     d[,2] = approx(x = kde_result$x, y = kde_result$y, xout = d[,1])$y
   } else {
-    library(ks)
     kde_result <- kde(d)
     d <- as.data.frame(matrix(runif(100000*k), ncol = k))
     d[, k + 1] <- predict(kde_result, x = d)
@@ -219,8 +223,17 @@ for(k in 1:4){
   }
 }
 
-box <- matrix(c(rep(0, 5),rep(1, 5)), ncol = 5, byrow = TRUE)
-save_res_to_file(list(box), paste0("prim_kde\\data_density_dimensions=", 5, "_multi_True.csv"))
+#######################################
+#### PRIM modification for density ####
+#######################################
 
+for(k in 1:5){
+  print(k)
+  d <- read.table(paste0("input\\data_density_dimensions=", k, "_multi_False"), sep=',')
+  res <- PRIMdens(d)
+  mass.min = 0.3^k
+  best_box <- res$boxes[max(which(sapply(res$boxes, function(x) prod(x[2,]-x[1,])) >= mass.min))]
+  save_res_to_file(best_box, paste0("prim_dens\\data_density_dimensions=", k, "_multi_False.csv"))
+}
 
 
