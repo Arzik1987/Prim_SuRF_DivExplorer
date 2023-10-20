@@ -78,7 +78,7 @@ assignInNamespace("peel.one",
 
 ### there is no need to discover thousands of boxes when we set the minimal
 ### size of a box to be small. So we edited the "prim.one" function by
-### restricting their number as "num.boxes <- min(k.max, 10)"
+### restricting their number as "num.boxes <- min(k.max, 5)"
 
 assignInNamespace("prim.one",
                   value = function (x, y, box.init = NULL, peel.alpha = 0.05, paste.alpha = 0.01, 
